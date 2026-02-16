@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  app:
+    image: mcr.microsoft.com/devcontainers/python:3.11
+    working_dir: /workspaces/trip-planner
+    volumes:
+      - ..:/workspaces/trip-planner:cached
+    environment:
+      # In devcontainer, "redis" is the service name on the compose network.
+      - REDIS_URL=redis://redis:6379/0
+      - RUN_TTL_S=86400
+    depends_on:
+      - redis
+    ports:
+      - "8000:8000"
+    command: bash -lc "sleep infinity"
