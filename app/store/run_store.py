@@ -54,3 +54,12 @@ class RunStore:
         except Exception:
             # If corrupted data, treat as not found (keeps M0 simple)
             return None
+
+    async def save_state(self, run_id: str, state_dict: dict, last_node: str) -> None:
+        run = load_run(run_id)
+        if raw is None:
+            return None
+        
+
+    async def load_state(self, run_id: str) -> dict | None: 
+    

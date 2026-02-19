@@ -12,4 +12,7 @@ class RunRecord(BaseModel):
     created_at: int  # epoch seconds
     request: Dict[str, Any]
     result: Optional[Dict[str, Any]] = None
+    state: Dict[str, Any] | None = None
+    trace_id: str | None = None 
+    last_node: str | None = None
     error: Optional[Dict[str, Any]] = None

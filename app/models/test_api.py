@@ -29,3 +29,21 @@ def test_api_responses_construct():
         error=None,
     )
     assert r2.request["query"] == "x"
+
+
+def test_get_run_response_requires_state_summary():
+    obj = GetRunResponse(
+        run_id="rid",
+        status="SUCCEEDED",
+        created_at=1,
+        request={"query": "x", "constraints": None},
+        result={"message": "ok"},
+        error=None,
+        state_summary={
+            "run_id": "rid",
+            "last_node": "synthesize",
+            "plan_steps_count": 1,
+            "observations_count": 1,
+        },
+    )
+    assert obj.state_summary["last_node"] == "synthesize"

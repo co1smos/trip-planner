@@ -6,8 +6,8 @@ from app.main import create_app
 from app.store._test_fakes import FakeRedis
 
 
-@pytest.mark.anyio
-async def test_plan_trip_and_get_run(monkeypatch):
+@pytest.mark.asyncio
+async def test_plan_trip_sync_and_get_run(monkeypatch):
     fake = FakeRedis()
 
     import app.api.routes_trip as mod
@@ -17,24 +17,30 @@ async def test_plan_trip_and_get_run(monkeypatch):
     app = create_app()
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        # Create run
+        # POST must synchronously execute workflow and finish
         resp = await ac.post("/plan_trip", json={"query": "go tokyo", "constraints": {"days": 5}})
         assert resp.status_code == 200
         body = resp.json()
         assert body["run_id"] == "rid"
-        assert body["status"] == "CREATED"
+        assert body["status"] == "SUCCEEDED"
+        assert body.get("result") is not None
 
-        # Get run
+        # GET must include state_summary
         resp2 = await ac.get("/runs/rid")
         assert resp2.status_code == 200
         run = resp2.json()
+
         assert run["run_id"] == "rid"
-        assert run["status"] == "CREATED"
-        assert run["request"]["query"] == "go tokyo"
-        assert run["request"]["constraints"]["days"] == 5
+        assert run["status"] == "SUCCEEDED"
+        assert run.get("result") is not None
+
+        assert "state_summary" in run
+        assert isinstance(run["state_summary"], dict)
+        assert "last_node" in run["state_summary"]
+        assert run["state_summary"]["last_node"]
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_get_run_404(monkeypatch):
     fake = FakeRedis()
 
