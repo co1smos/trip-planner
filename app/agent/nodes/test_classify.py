@@ -4,7 +4,7 @@ from app.models.state import AgentState
 from app.agent.nodes.classify import classify_node
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_classify_node_sets_category_and_last_node():
     s = AgentState(
         run_id="rid",
@@ -15,7 +15,7 @@ async def test_classify_node_sets_category_and_last_node():
         observations=[],
         result=None,
         last_node=None,
-        errors=[],
+        errors={},
     )
     out = await classify_node(s)
     assert out.category is not None

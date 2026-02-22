@@ -13,7 +13,7 @@ def test_agent_state_construct_and_summarize_minimal():
         observations=[],
         result=None,
         last_node=None,
-        errors=[],
+        errors={},
     )
     summary = summarize_state(s)
     assert isinstance(summary, dict)

@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional
 from redis.asyncio import Redis
 
 from app.models.run import RunRecord
+from app.models.state import AgentState, summarize_state
 
 
 class RunStore:
@@ -21,9 +22,14 @@ class RunStore:
         self._ttl_s = int(ttl_s)
 
     @staticmethod
-    def _key(run_id: str) -> str:
+    def _run_key(run_id: str) -> str:
         return f"run:{run_id}"
 
+    @staticmethod
+    def _state_key(run_id: str) -> str:
+        return f"state:{run_id}"
+
+    # probably we can update it to return run_id only, since caller can load the record if needed. But for M1 simplicity we return the full record.
     async def create_run(self, request_dict: Dict[str, Any]) -> RunRecord:
         run_id = uuid.uuid4().hex
         now = int(time.time())
@@ -33,18 +39,18 @@ class RunStore:
             created_at=now,
             request=request_dict,
             result=None,
-            error=None,
+            errors=None,
         )
         await self.save_run(record)
         return record
 
     async def save_run(self, record: RunRecord) -> None:
-        key = self._key(record.run_id)
+        key = self._run_key(record.run_id)
         payload = record.model_dump()
         await self._r.set(key, json.dumps(payload), ex=self._ttl_s)
 
     async def load_run(self, run_id: str) -> Optional[RunRecord]:
-        key = self._key(run_id)
+        key = self._run_key(run_id)
         raw = await self._r.get(key)
         if raw is None:
             return None
@@ -55,11 +61,21 @@ class RunStore:
             # If corrupted data, treat as not found (keeps M0 simple)
             return None
 
-    async def save_state(self, run_id: str, state_dict: dict, last_node: str) -> None:
-        run = load_run(run_id)
-        if raw is None:
-            return None
+    async def save_state(self, state: AgentState) -> None:
+        key = self._state_key(state.run_id)
+        payload = state.model_dump()
+        await self._r.set(key, json.dumps(payload), ex=self._ttl_s)
         
 
-    async def load_state(self, run_id: str) -> dict | None: 
+    async def load_state(self, run_id: str) -> AgentState | None: 
+        key = self._state_key(run_id)
+        raw = await self._r.get(key)
+        if raw is None:
+            return None
+        try:
+            data = json.loads(raw)
+            return AgentState.model_validate(data)
+        except Exception:
+            # If corrupted data, treat as not found (keeps M0 simple)
+            return None
     

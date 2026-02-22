@@ -6,8 +6,8 @@ from app.main import create_app
 from app.store._test_fakes import FakeRedis
 
 
-@pytest.mark.asyncio
-async def test_plan_trip_sync_and_get_run(monkeypatch):
+@pytest.mark.anyio
+async def test_plan_trip_sync_returns_result_and_run_has_state_summary(monkeypatch):
     fake = FakeRedis()
 
     import app.api.routes_trip as mod
@@ -23,9 +23,7 @@ async def test_plan_trip_sync_and_get_run(monkeypatch):
         body = resp.json()
         assert body["run_id"] == "rid"
         assert body["status"] == "SUCCEEDED"
-        assert body.get("result") is not None
 
-        # GET must include state_summary
         resp2 = await ac.get("/runs/rid")
         assert resp2.status_code == 200
         run = resp2.json()
@@ -34,13 +32,16 @@ async def test_plan_trip_sync_and_get_run(monkeypatch):
         assert run["status"] == "SUCCEEDED"
         assert run.get("result") is not None
 
+        # MUST have state_summary and must expose last_node
         assert "state_summary" in run
-        assert isinstance(run["state_summary"], dict)
-        assert "last_node" in run["state_summary"]
-        assert run["state_summary"]["last_node"]
+        ss = run["state_summary"]
+        assert isinstance(ss, dict)
+        assert "last_node" in ss and ss["last_node"]
+        assert "plan_steps_count" in ss
+        assert "observations_count" in ss
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_get_run_404(monkeypatch):
     fake = FakeRedis()
 

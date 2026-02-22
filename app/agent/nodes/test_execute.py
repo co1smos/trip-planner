@@ -4,7 +4,7 @@ from app.models.state import AgentState
 from app.agent.nodes.execute import execute_node
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_execute_node_sets_observations():
     s = AgentState(
         run_id="rid",
@@ -15,7 +15,7 @@ async def test_execute_node_sets_observations():
         observations=[],
         result=None,
         last_node=None,
-        errors=[],
+        errors={},
     )
     out = await execute_node(s)
     assert isinstance(out.observations, list)

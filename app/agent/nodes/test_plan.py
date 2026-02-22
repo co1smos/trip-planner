@@ -4,7 +4,7 @@ from app.models.state import AgentState
 from app.agent.nodes.plan import plan_node
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_plan_node_sets_plan_steps():
     s = AgentState(
         run_id="rid",
@@ -15,7 +15,7 @@ async def test_plan_node_sets_plan_steps():
         observations=[],
         result=None,
         last_node=None,
-        errors=[],
+        errors={},
     )
     out = await plan_node(s)
     assert isinstance(out.plan_steps, list)

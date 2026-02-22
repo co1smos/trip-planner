@@ -2,6 +2,7 @@ import pytest
 
 from app.store.run_store import RunStore
 from app.store._test_fakes import FakeRedis
+from app.models.state import AgentState
 
 
 @pytest.mark.anyio
@@ -38,7 +39,7 @@ async def test_run_store_load_corrupted_json_returns_none():
     assert await store.load_run("bad") is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_run_store_save_and_load_state(monkeypatch):
     r = FakeRedis()
     store = RunStore(r, ttl_s=60)
@@ -50,23 +51,26 @@ async def test_run_store_save_and_load_state(monkeypatch):
     rec = await store.create_run({"query": "x", "constraints": None})
     assert rec.run_id == "rid"
 
-    state = {
-        "run_id": "rid",
-        "trace_id": "tid",
-        "request": {"query": "x", "constraints": None},
-        "category": "city",
-        "plan_steps": [{"tool": "dummy", "args": {}}],
-        "observations": [{"tool": "dummy", "ok": True}],
-        "result": {"message": "ok"},
-        "last_node": "synthesize",
-        "errors": [],
-    }
+    state = AgentState(
+        run_id="rid",
+        trace_id="tid",
+        request={"query": "x", "constraints": None},
+        category="city",
+        plan_steps=[{"tool": "dummy", "args": {}}],
+        observations=[{"tool": "dummy", "ok": True}],
+        result={"message": "ok"},
+        last_node="synthesize",
+        errors=dict(),
+    )
 
     # MUST exist in M1
-    await store.save_state("rid", state, last_node="synthesize")
+    await store.save_state(state)
     loaded = await store.load_state("rid")
 
     assert loaded is not None
-    assert loaded["run_id"] == "rid"
-    assert loaded["last_node"] == "synthesize"
-    assert loaded["result"]["message"] == "ok"
+    assert loaded.run_id == "rid"
+    assert loaded.last_node == "synthesize"
+    
+    assert hasattr(loaded, "result")
+    state_result = loaded.result
+    assert state_result["message"] == "ok"

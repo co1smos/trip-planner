@@ -40,5 +40,6 @@ class GetRunResponse(BaseModel):
     status: str
     created_at: int
     request: Dict[str, Any]
+    state_summary: Optional[Dict[str, Any]] = None
     result: Optional[Dict[str, Any]] = None
     error: Optional[Dict[str, Any]] = None
