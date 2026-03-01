@@ -2,7 +2,22 @@ import pytest
 
 from app.agent.graph import build_graph
 from app.models.state import AgentState
+from pydantic import BaseModel
 
+
+class _FakeRegistry:
+    def __init__(self):
+        self.calls = []
+
+    async def call(self, tool_name, args, timeout_s=None):
+        self.calls.append(tool_name)
+        from app.models.tools import ToolResult
+
+        class _Out(BaseModel):
+            tool: str
+
+        return ToolResult(ok=True, data=_Out(tool=tool_name), error=None, meta=None)
+    
 
 async def _run_graph(graph, state_dict):
     # LangGraph compiled graphs commonly expose ainvoke; some expose invoke
@@ -33,7 +48,7 @@ async def test_graph_runs_end_to_end_and_produces_result():
         observations=[],
         result=None,
         last_node=None,
-        errors={},
+        errors=[],
     )
 
     out = await _run_graph(g, init.model_dump())
@@ -46,3 +61,33 @@ async def test_graph_runs_end_to_end_and_produces_result():
     # Strong expectation: last node should be synthesize-ish.
     # If you name it differently, change this assert to match your node name.
     assert "synth" in final.last_node.lower()
+
+
+@pytest.mark.anyio
+async def test_graph_end_to_end_smoke(monkeypatch):
+    from app.agent.graph import build_graph
+    import app.agent.nodes.execute as exec_mod
+
+    reg = _FakeRegistry()
+    monkeypatch.setattr(exec_mod, "build_registry", lambda: reg)
+
+    g = build_graph()
+    state = AgentState(
+        run_id="rid",
+        trace_id="tid",
+        request={"query": "tokyo", "constraints": {"days": 2}},
+        category=None,
+        plan_steps=[],
+        observations=[],
+        result=None,
+        last_node=None,
+        errors=[],
+    )
+
+    if hasattr(g, "ainvoke"):
+        out = await g.ainvoke(state)
+    else:
+        out = g.invoke(state)
+
+    assert out['last_node'] == 'synthesize'
+    assert len(reg.calls) >= 1

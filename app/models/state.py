@@ -11,7 +11,7 @@ class AgentState(BaseModel):
     observations: list[dict[str, Any]]
     result: dict[str, Any] | None
     last_node: str | None
-    errors: dict[str, Any]
+    errors: list[dict[str, Any]]
 
 def summarize_state(state: AgentState) -> dict[str, Any]:
     summary = {

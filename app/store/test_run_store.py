@@ -60,7 +60,7 @@ async def test_run_store_save_and_load_state(monkeypatch):
         observations=[{"tool": "dummy", "ok": True}],
         result={"message": "ok"},
         last_node="synthesize",
-        errors=dict(),
+        errors=[],
     )
 
     # MUST exist in M1

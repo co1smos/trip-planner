@@ -10,6 +10,6 @@ class RunRecord(BaseModel):
     run_id: str
     status: RunStatus
     created_at: int  # epoch seconds
-    request: Dict[str, Any]
-    result: Optional[Dict[str, Any]] = None
-    errors: Optional[Dict[str, Any]] = None
+    request: dict[str, Any]
+    result: dict[str, Any] | None = None
+    errors: dict[str, Any] | None = None

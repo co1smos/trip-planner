@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 
 from app.agent.runner import WorkflowRunner
 from app.config import get_settings
@@ -11,7 +11,7 @@ router = APIRouter(prefix="", tags=["trip"])
 
 
 @router.post("/plan_trip", response_model=PlanTripResponse)
-async def plan_trip(req: PlanTripRequest):
+async def plan_trip(req: PlanTripRequest, background_tasks: BackgroundTasks):
     """
     M0 behavior:
     - Accept query + optional constraints
@@ -24,9 +24,10 @@ async def plan_trip(req: PlanTripRequest):
     runner = WorkflowRunner(store)
 
     record = await store.create_run(request_dict=req.model_dump())
-    _ = await runner.run_workflow(record.run_id)  # fire and forget
-    record = await store.load_run(record.run_id)  # reload to get updated status/result
-    return PlanTripResponse(run_id=record.run_id, status=record.status)
+    background_tasks.add_task(runner.run_workflow, record.run_id)  # fire and forget
+    # _ = await runner.run_workflow(record.run_id)  # fire and forget
+    # record = await store.load_run(record.run_id)  # reload to get updated status/result
+    return PlanTripResponse(run_id=record.run_id, status="RUNNING")
 
 
 @router.get("/runs/{run_id}", response_model=GetRunResponse)

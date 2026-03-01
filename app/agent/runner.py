@@ -11,7 +11,7 @@ class WorkflowRunner:
         self.store = store
         self.graph = build_graph()
     
-    async def run_workflow(self, run_id: str) -> dict:
+    async def run_workflow(self, run_id: str) -> None:
         # update record status 
         record = await self.store.load_run(run_id)
         if record is None:
@@ -29,10 +29,9 @@ class WorkflowRunner:
             observations=[],
             result=None,
             last_node=None,
-            errors=dict(),
+            errors=[],
         )
 
-        graph = build_graph()
         last_state: AgentState | None = None
 
         try:
@@ -51,7 +50,7 @@ class WorkflowRunner:
                 record.result = last_state.result
             else:
                 record.status = "FAILED"
-                record.errors = (last_state.errors if last_state else {"node": "unknown", "msg": "no state"})
+                record.errors = ({"errors": last_state.errors} if last_state else {"node": "unknown", "msg": "no state"})
 
         except Exception as e:
             # failure: persist FAILED + error info
@@ -65,4 +64,3 @@ class WorkflowRunner:
             raise
 
         await self.store.save_run(record)
-        return record.result

@@ -15,7 +15,7 @@ async def test_classify_node_sets_category_and_last_node():
         observations=[],
         result=None,
         last_node=None,
-        errors={},
+        errors=[],
     )
     out = await classify_node(s)
     assert out.category is not None

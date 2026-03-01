@@ -33,9 +33,7 @@ async def test_runner_checkpoints_each_step_and_succeeds(monkeypatch):
     monkeypatch.setattr(RunStore, "save_state", spy_save_state)
 
     runner = WorkflowRunner(store)
-    result = await runner.run_workflow("rid")
-
-    assert isinstance(result, dict)
+    await runner.run_workflow("rid")
 
     # Must have checkpoints: start + each node => >= 5
     assert len(calls) >= 5

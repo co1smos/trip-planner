@@ -25,6 +25,9 @@ class FakeRedis:
         # We ignore TTL in M0 fake (not needed for unit tests)
         self._data[key] = value
 
+    def raw_get(self, key: str) -> Optional[str]:
+        return self._data.get(key)
+
     # Convenience helpers for tests
     def raw_set_json(self, key: str, obj: Any) -> None:
         self._data[key] = json.dumps(obj)
