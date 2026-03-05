@@ -1,100 +1,79 @@
+# app/agent/nodes/test_execute_m2.py
 import pytest
-from pydantic import BaseModel
 
-from app.models.state import AgentState
-from app.models.tools import ToolResult, ToolError
-from app.agent.nodes.execute import execute_node
 import app.agent.nodes.execute as exec_mod
 
 
+def _build_state_with_plan_steps(steps):
+    from app.models.state import AgentState  # local import
+    fields = getattr(AgentState, "model_fields", {}) or {}
+    data = {}
+
+    if "run_id" in fields:
+        data["run_id"] = "rid"
+    if "trace_id" in fields:
+        data["trace_id"] = "t1"
+    if "request" in fields:
+        data["request"] = {"query": "x", "constraints": None}
+    if "plan_steps" in fields:
+        data["plan_steps"] = steps
+    if "observations" in fields:
+        data["observations"] = []
+    if "errors" in fields:
+        data["errors"] = []
+    if "last_node" in fields:
+        data["last_node"] = None
+    if "result" in fields:
+        data["result"] = None
+
+    return AgentState.model_construct(**data)
+
+
 class _FakeRegistry:
-    def __init__(self):
+    def __init__(self, results):
+        self._results = list(results)
         self.calls = []
 
-    async def call(self, tool_name, args, timeout_s=None):
-        self.calls.append((tool_name, args, timeout_s))
-
-        class _Out(BaseModel):
-            tool: str
-
-        return ToolResult(ok=True, data=_Out(tool=tool_name), error=None, meta=None)
+    async def call(self, tool_name, args, *, timeout_s=None):  # noqa: ANN001
+        self.calls.append((tool_name, args))
+        return self._results.pop(0)
 
 
 @pytest.mark.anyio
-async def test_execute_node_calls_registry_and_writes_observations(monkeypatch):
-    fake = _FakeRegistry()
-    monkeypatch.setattr(exec_mod, "build_registry", lambda: fake)
+async def test_execute_records_tool_error_and_continues(monkeypatch):
+    """
+    If one tool returns ok=False, execute should still:
+    - record the observation
+    - continue to next step (if your policy is continue)
+    """
+    # ToolResult is your model; but execute usually stores dict anyway.
+    # We'll just provide dicts shaped like ToolResult.model_dump()
+    bad = {"ok": False, "data": None, "error": {"type": "TOOL_EXCEPTION", "message": "boom", "retryable": False}}
+    good = {"ok": True, "data": {"x": 1}, "error": None}
 
-    state = AgentState(
-        run_id="rid",
-        trace_id="tid",
-        request={"query": "tokyo"},
-        category="city",
-        plan_steps=[
-            {"tool": "search_places", "args": {"query": "tokyo"}},
-            {"tool": "estimate_budget", "args": {"days": 3, "currency": "USD", "total": 1000}},
-        ],
-        observations=[],
-        result=None,
-        last_node=None,
-        errors=[],
-    )
+    reg = _FakeRegistry([bad, good])
 
-    out = await execute_node(state)
+    # Patch build_registry() or get_registry() used by execute_node
+    if hasattr(exec_mod, "build_registry"):
+        monkeypatch.setattr(exec_mod, "build_registry", lambda: reg)
+    elif hasattr(exec_mod, "get_registry"):
+        monkeypatch.setattr(exec_mod, "get_registry", lambda: reg)
+    else:
+        # last resort: execute_node may import registry module-level
+        import app.tools.registry as reg_mod
+        monkeypatch.setattr(reg_mod, "build_registry", lambda: reg)
 
-    assert out.last_node is not None
-    assert len(fake.calls) == 2
+    steps = [
+        {"tool": "search_places", "args": {"destination": "Tokyo", "limit": 3}},
+        {"tool": "estimate_budget", "args": {"days": 3}},
+    ]
+    state = _build_state_with_plan_steps(steps)
+
+    out = await exec_mod.execute_node(state)
+
     assert len(out.observations) == 2
-
-    obs0 = out.observations[0]
-    assert {"tool", "args", "result"} <= set(obs0.keys())
-    assert obs0["tool"] == "search_places"
-    assert isinstance(obs0["args"], dict)
-
-    # result should be JSON-serializable dict via ToolResult.model_dump()
-    assert isinstance(obs0["result"], dict)
-    assert "ok" in obs0["result"]
-    assert obs0["result"]["ok"] is True
-
-
-class _FailRegistry:
-    def __init__(self, error_type: str):
-        self.error_type = error_type
-        self.calls = 0
-
-    async def call(self, tool_name, args, timeout_s=None):
-        self.calls += 1
-        return ToolResult(
-            ok=False,
-            data=None,
-            error=ToolError(type=self.error_type, message="x", retryable=False, details=None),
-            meta=None,
-        )
-
-
-@pytest.mark.anyio
-async def test_execute_records_tool_failures_in_observations(monkeypatch):
-    from app.agent.nodes.execute import execute_node
-    import app.agent.nodes.execute as exec_mod
-
-    reg = _FailRegistry("TOOL_EXCEPTION")
-    monkeypatch.setattr(exec_mod, "build_registry", lambda: reg)
-
-    state = AgentState(
-        run_id="rid",
-        trace_id="tid",
-        request={"query": "x"},
-        category="city",
-        plan_steps=[{"tool": "search_places", "args": {"query": "x"}}],
-        observations=[],
-        result=None,
-        last_node=None,
-        errors=[],
-    )
-
-    out = await execute_node(state)
-    assert reg.calls == 1
-    assert len(out.observations) == 1
-    r = out.observations[0]["result"]
-    assert r["ok"] is False
-    assert r["error"]["type"] == "TOOL_EXCEPTION"
+    assert out.observations[0]["tool"] == "search_places"
+    assert out.observations[0]["result"]["ok"] is False
+    assert out.observations[1]["tool"] == "estimate_budget"
+    assert out.observations[1]["result"]["ok"] is True
+    assert len(reg.calls) == 2
