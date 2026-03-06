@@ -3,7 +3,7 @@ from app.models.tools import EstimateBudgetInput, EstimateBudgetOutput, ToolResu
 def estimate_budget(input: EstimateBudgetInput) -> ToolResult:
     return ToolResult(
         ok=True,
-        data=EstimateBudgetOutput(total=100),
+        data=EstimateBudgetOutput(total=input.days * 100),  # dummy logic: $100 per day
         error=None,
         meta=None
     )

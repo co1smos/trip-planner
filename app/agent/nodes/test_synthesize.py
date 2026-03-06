@@ -35,7 +35,7 @@ async def test_synthesize_includes_tools_used_and_budget_when_available():
         {
             "tool": "estimate_budget",
             "args": {"days": 5},
-            "result": {"ok": True, "data": {"breakdown": {"food": 100}}, "error": None},
+            "result": {"ok": True, "data": {"total": 100}, "error": None},
         },
         {
             "tool": "search_places",
@@ -74,8 +74,8 @@ async def test_synthesize_handles_tool_error_gracefully_and_adds_note():
     out = await syn_mod.synthesize_node(state)
 
     assert out.result is not None
-    notes = out.result.get("notes") or out.result.get("assumptions") or []
-    assert isinstance(notes, list)
+    tools_error = out.result.get("tools_error") or out.result.get("assumptions") or []
+    assert isinstance(tools_error, list)
     # should mention either tool failure or llm degradation
-    joined = " ".join(str(x).lower() for x in notes)
-    assert ("timeout" in joined) or ("not_found" in joined) or ("no data" in joined)
+    joined = " ".join(str(x).lower() for x in tools_error)
+    assert ("timeout" in joined) or ("NOT_FOUND" in joined) or ("no data" in joined)

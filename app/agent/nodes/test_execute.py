@@ -2,6 +2,8 @@
 import pytest
 
 import app.agent.nodes.execute as exec_mod
+from app.models.tools import ToolResult, ToolError
+from pydantic import BaseModel
 
 
 def _build_state_with_plan_steps(steps):
@@ -46,10 +48,11 @@ async def test_execute_records_tool_error_and_continues(monkeypatch):
     - record the observation
     - continue to next step (if your policy is continue)
     """
-    # ToolResult is your model; but execute usually stores dict anyway.
-    # We'll just provide dicts shaped like ToolResult.model_dump()
-    bad = {"ok": False, "data": None, "error": {"type": "TOOL_EXCEPTION", "message": "boom", "retryable": False}}
-    good = {"ok": True, "data": {"x": 1}, "error": None}
+    class _Out(BaseModel):
+            tool: str
+            value: int 
+    good = ToolResult(ok=True, data=_Out(tool="x", value=1), error=None, meta=None)
+    bad = ToolResult(ok=False, data=None, error=ToolError(type="TOOL_EXCEPTION", message="boom", retryable=False, details=None), meta=None)
 
     reg = _FakeRegistry([bad, good])
 
