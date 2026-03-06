@@ -5,7 +5,7 @@ from pydantic import BaseModel
 class AgentState(BaseModel):
     run_id: str
     trace_id: str
-    request: dict[str, Any]
+    request: dict[str, Any] # should include query + api constraints
     category: str | None = None
     plan_steps: list[dict[str, Any]]
     observations: list[dict[str, Any]]

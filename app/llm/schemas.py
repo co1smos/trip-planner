@@ -5,11 +5,11 @@ from pydantic import BaseModel, Field
 class ParsedConstraints(BaseModel):
     days: int | None = Field(default=None, ge=1)
     destination: str | None = Field(default=None)
-    date_range: dict | None = Field(default=None)
-    budget: dict | None = Field(default=None)
+    date_range: dict | None = Field(default=None, description="start_date, end_date in YYYY-MM-DD")
+    budget: dict | None = Field(default=None, description="currency, total")
     interests: list[str] | None = Field(default=None)
-    style: str | None = Field(default=None)
-    pace: str | None = Field(default=None)
+    style: str | None = Field(default=None, description="budget | mid | luxury")
+    pace: str | None = Field(default=None, description="relaxed | normal | packed")
     limit: int | None = Field(default=None)
 
 def merge_constraints(api_constraints: dict | None, parsed: ParsedConstraints) -> dict:
