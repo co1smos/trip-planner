@@ -8,7 +8,7 @@ from app.trace.tracer import log_event
 
 load_dotenv()
 
-gemini = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+gemini = genai.Client(api_key=os.getenv("GEMINI_API_KEY")) if os.getenv("GEMINI_API_KEY") else None
 
 SYSTEM_PROMPT = """
 You are a JSON-only information extraction engine.
